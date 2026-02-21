@@ -1,0 +1,91 @@
+Amazon Connect通話 自動文字起こし・要約基盤 設計書
+
+1. システム概要
+目的:
+Amazon Connect の通話録音データを自動で文字起こし・要約し、
+オペレーターの後処理時間削減とナレッジ化を実現する。
+
+想定ユースケース:
+・コールセンター通話の自動要約
+・クレーム内容の可視化
+・応対品質の分析基盤
+
+2. 処理フロー
+1. Connect通話録音 → S3保存
+2. S3イベント発火
+3. EventBridge経由でFargate起動
+4. Transcribeで文字起こし
+5. Bedrockで要約生成
+6. DynamoDB保存
+7. API経由でフロント表示
+
+3. 採用技術と選定理由
+S3:
+・録音データ保存
+・高耐久、イベント連携可能
+・SSE-KMSによる暗号化
+
+EventBridge:
+・疎結合設計
+・将来的な拡張性確保
+
+ECS Fargate:
+・サーバーレス寄り構成
+・OS管理不要
+・コンテナ化による可搬性
+
+Transcribe:
+・高精度文字起こし
+・話者分離対応可能
+
+Bedrock:
+・LLMによる自然な要約
+・プロンプト設計で品質制御可能
+
+DynamoDB:
+・スケーラブル
+・user_idをPartition Keyに設定
+・SaaS向けマルチテナント設計
+
+Cognito:
+・JWTベース認証
+・API Gatewayと統合可能
+・ユーザー単位アクセス制御
+
+4. データ設計
+DynamoDBテーブル設計:
+PK: user_id
+SK: call_id
+
+属性例:
+・transcript_text
+・summary_text
+・created_at
+・sentiment_score
+
+5. セキュリティ設計
+・S3: Private + KMS暗号化
+・IAM: 最小権限ポリシー
+・Fargate: VPC内配置
+・API Gateway: Cognito Authorizer使用
+・Bedrock: IAM制御
+・ログに音声データを出力しない
+
+6. 可用性・運用設計
+・CloudWatch Logsによる監視
+・Transcribe失敗時のリトライ設計
+・将来的なDLQ設計
+
+7. コスト試算（簡易）
+・S3: 保存量依存
+・Transcribe: 分単位課金
+・Bedrock: トークン課金
+・Fargate: 実行時間課金
+
+月数百件規模であれば数千円〜1万円程度想定
+
+8. 今後の拡張案
+・感情分析
+・クレーム検知アラート
+・OpenSearch連携
+・TerraformによるIaC化
